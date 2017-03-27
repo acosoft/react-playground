@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    
+    <title>React Playground</title>
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+    
+    <script src="https://fb.me/react-0.14.7.min.js"></script>
+    <script src="https://fb.me/react-dom-0.14.7.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-core/5.8.23/browser.min.js"></script>
+  </head>
+  <body>
+  
+    <div class="container">
+        <div class="row">
+            <div class="col-md-6 col-md-push-3" id="example"></div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6 col-md-push-3" id="content"></div>
+        </div>
+    </div>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+    
+    <script type="text/babel">
+        class Message extends React.Component {
+            
+            constructor(props) {
+                super(props);
+                
+                if(this.props.msg) {
+                    var msg = this.props.msg;
+                } else {
+                    var msg = "Radi ko urica : )";
+                }
+                
+                this.state = { open: false, msg: msg };
+                
+            }          
+            
+            componentDidMount() {
+                if(this.state.open == false) {
+                    this.setState({ open: true}, function() {
+                       $(this.refs.box).slideDown(); 
+                    });
+                }
+            }
+            
+            render() {
+                return (<div ref="box" style={{ display: 'none' }}><div className="alert alert-info">{this.state.msg}</div></div>);
+            }
+        };
+        
+        var CommentBox = React.createClass({
+            getInitialState: function() {
+                return { comments: [], loading: true, visible: false, index: 1 };
+            },
+            componentDidUpdate: function() {
+                if(this.state.visible == false) {
+                    $(this.refs.box).slideDown(function() {
+                        this.setState({ visible: true });    
+                    });
+                };
+            },
+            componentDidMount: function() {
+                $.get(this.props.src, function(data) {
+
+                    var items = data.map(function(item) {
+                        
+                        item.open = true;    
+                        item.index = this.state.index++;
+                        
+                        return item;
+
+                    }.bind(this));
+                    
+                    var callback = function() {
+                         this.self.setState({ comments: this.items, loading: false });
+                    }.bind({ self: this, items: items});
+                    
+                    setTimeout(callback, 1000);
+                    
+                }.bind(this), 'json');
+            },
+            handleSubmitComment: function(comment) {
+                var comments = this.state.comments;
+                
+                comment.index = this.state.index++;
+                comment.open = false;
+                
+                comments.push(comment);
+                this.setState({ comments: comments });
+            },
+            handleRemoveComment: function(comment) {
+                var newComments = this.state.comments.filter(function(item) {
+                    return item.index != comment.index;
+                });
+                
+                this.setState({ comments: newComments });
+            },
+            render: function() {
+                if(this.state.loading == true) {
+                    return (
+                        <div className="commentBox">
+                            <div className="panel panel-default panel-body">
+                                <p style={{ textAlign: 'center' }}>Učitavam komentare</p>
+        						<div className="progress" style={{ marginBottom: '0px' }}>
+        							<div className="progress-bar progress-bar-striped active" style={{ width: '100%' }}></div>
+        						</div>
+                            </div>
+                        </div>
+                    );
+                } else {
+                    var style = {};
+                    
+                    if(this.state.visible == false) {
+                        style.display = 'none';
+                    }
+                    
+                    return (
+                        <div>
+                            <div ref="box" className="commentBox" style={style}>
+                                <CommentList data={this.state.comments} onRemoveComment={this.handleRemoveComment}/>
+                                <CommentForm onSubmitComment={this.handleSubmitComment} />
+                            </div>
+                        </div>
+                    );
+                }
+            }
+        });
+        
+        var CommentList = React.createClass({
+            render: function() {
+                var comments = this.props.data.map(function(item) {
+                    return (
+                        <Comment comment={item} onRemoveComment={this.props.onRemoveComment} author={item.author}>{item.comment}</Comment>        
+                    );
+                }.bind(this));
+                        
+                return (
+                    <div className='commentList'>
+                        {comments}
+                    </div>
+                );
+            }
+        });
+        
+        var CommentForm = React.createClass({
+            getInitialState: function() {
+                return { author: '', comment: '', message: false };  
+            },
+            handleAuthorChange: function(e) {
+                this.setState({ author: e.target.value, message: false });
+            },
+            handleCommentChange: function(e) {
+                this.setState({ comment: e.target.value, message: false });
+            },
+            handleSubmitComment: function() {
+                if(this.state.author.trim() == '') {
+                    this.setState({ message: true });
+                    $(this.refs.author).focus();
+                } else if(this.state.comment.trim() == '') {
+                    this.setState({ message: true });
+                    $(this.refs.comment).focus();
+                } else {
+                    this.props.onSubmitComment({ author: this.state.author, comment: this.state.comment });
+                    this.setState(this.getInitialState());
+                    $(this.refs.author).focus();
+                }
+            },
+            componentDidUpdate: function() {
+                if(this.state.message == true) {
+                    $(this.refs.message).slideDown('fast', function() {
+                        var body = $('body');
+                        body.animate({ scrollTop: body.height() - $(window).height() });
+                    });
+                } else {
+                    $(this.refs.message).slideUp('fast');
+                }
+            },
+            render: function() {
+                return (
+                    <div className="commentForm panel panel-info">
+                        <div className="panel-heading"><span className="panel-title">Novi komentar</span></div>
+                        <div className="panel-body">
+                            <div ref="message" className="alert alert-danger" style={{ display: 'none' }}><strong>Upozorenje</strong> Morate upisati naziv autora i komentar!</div>
+                            <div className="form-group"><input className="form-control" ref="author" placeholder="Autor" type="text" value={this.state.author} onChange={this.handleAuthorChange} /></div>
+                            <div className="form-group"><textarea style={{ height: '100px' }} className="form-control" ref="comment" placeholder="Komentar" value={this.state.comment} onChange={this.handleCommentChange} /></div>
+                            <button onClick={this.handleSubmitComment} className="btn btn-primary btn-block">Objavi komentar</button>
+                        </div>
+                    </div>
+                );
+            }
+        });
+        
+        var Comment = React.createClass({
+            componentDidMount: function() {
+                if(this.props.comment.open == false) {
+                    $(this.refs.box).slideDown('fast', function() {
+                        this.props.comment.open = true;
+                        
+                        var body = $('body');
+                        body.animate({ scrollTop: body.height() - $(window).height() });
+                    }.bind(this));
+                }
+            },
+            handleClose: function(e) {
+                e.preventDefault();
+                
+                $(this.refs.box).slideUp(function() {
+                    this.props.onRemoveComment(this.props.comment);    
+                }.bind(this));
+            },
+            render: function() {
+                var style = {}
+                
+                if(this.props.comment.open == false) {
+                    style.display = 'none';
+                }
+                
+                return (
+                    <div key={this.props.comment.index} ref="box" style={style}>
+                        <div className="comment panel panel-default">
+                            <div className="panel-heading">
+                                <span className="panel-title">{this.props.author}</span>
+                                <a href="#" onClick={this.handleClose}><span className="glyphicon glyphicon-remove pull-right" style={ { marginTop: '3px' } }></span></a>
+                            </div>
+                            <div className="panel-body">{this.props.children}</div>
+                        </div>
+                        <div className="clearfix"></div>
+                    </div>
+                );
+            }
+        });
+        
+        ReactDOM.render(
+            <h1>Comments</h1>,
+            document.getElementById('example')
+        );
+        
+        ReactDOM.render(
+            <CommentBox src="/react-comments.json" />,
+            document.getElementById('content')
+        );
+        
+        //# sourceURL=dynamics.js
+    </script>
+    
+  </body>
+</html>
